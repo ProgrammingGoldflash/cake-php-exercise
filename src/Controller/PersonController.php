@@ -128,6 +128,19 @@ class PersonController extends AppController
         $this->RequestHandler->renderAs($this, 'json');
     }
 
+    public function search()
+    {
+        $foundedPersons=[];
+        $resultsWithQuery=[];
+        if ($this->request->is('post')) {
+            $searchParams = $this->request->getData();
+            $foundedPersons =  $this->Person->find('all', ['conditions' => ['first_name LIKE' => '%'.$searchParams['search_word'].'%']]);
+            $resultsWithQuery = $this->Person->query("Select * FROM Person"); //nur demonstrativ damit man den Unterschied im Ergebnis-Array sieht
+        }
+
+        $this->set(compact('foundedPersons', 'resultsWithQuery'));
+    }
+    
     /**
      * Edit method
      *
