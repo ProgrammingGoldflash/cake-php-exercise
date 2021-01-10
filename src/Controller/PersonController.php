@@ -65,32 +65,42 @@ class PersonController extends AppController
         if ($this->request->is('post')) {
             
             $person = $this->Person->patchEntity($person, $this->request->getData());
-            if ($this->Person->save($person)) {
-                $this->Flash->success(__('The person has been saved.'));
+                        
+            $conditions = array(
+                'Person.first_name' => $this->request->getData('first_name'),
+                'Person.last_name' => $this->request->getData('last_name')
+            );
 
-                $personLehrberufTable = $this->getTableLocator()->get('PersonLehrberuf');
-                $schoolTable = $this->getTableLocator()->get('School');
-                $lehrberufTable = $this->getTableLocator()->get('Lehrberuf');
+            if ($this->Person->exists($conditions)){
+                $this->Flash->error(__('The person already exists.'));
+            } else {
+                if ($this->Person->save($person)) {
+                    $this->Flash->success(__('The person has been saved.'));
     
-                $personLehrberuf = $personLehrberufTable->newEmptyEntity();
+                    $personLehrberufTable = $this->getTableLocator()->get('PersonLehrberuf');
+                    $schoolTable = $this->getTableLocator()->get('School');
+                    $lehrberufTable = $this->getTableLocator()->get('Lehrberuf');
+        
+                    $personLehrberuf = $personLehrberufTable->newEmptyEntity();
+        
+                    $personLehrberuf->person_id = $person->id;
+                    $personLehrberuf->school_id = $this->request->getData("school_id");
+                    $personLehrberuf->lehrberuf_id = $this->request->getData("lehrberuf_id");
+                    $personLehrberuf->school = $schoolTable->findById($this->request->getData("school_id"))->first();
+                    $personLehrberuf->lehrberuf = $lehrberufTable->findById($this->request->getData('lehrberuf_id'))->first();
+        
+                    $test = "INSERT INTO secondtask.person_lehrberuf (person_id, school_id, lehrberuf_id) VALUES (".$person->id.", ".$this->request->getData("school_id").", ".$this->request->getData("lehrberuf_id").");";
     
-                $personLehrberuf->person_id = $person->id;
-                $personLehrberuf->school_id = $this->request->getData("school_id");
-                $personLehrberuf->lehrberuf_id = $this->request->getData("lehrberuf_id");
-                $personLehrberuf->school = $schoolTable->findById($this->request->getData("school_id"))->first();
-                $personLehrberuf->lehrberuf = $lehrberufTable->findById($this->request->getData('lehrberuf_id'))->first();
-    
-                $test = "INSERT INTO secondtask.person_lehrberuf (person_id, school_id, lehrberuf_id) VALUES (".$person->id.", ".$this->request->getData("school_id").", ".$this->request->getData("lehrberuf_id").");";
-
-                $connection = ConnectionManager::get('default');
-                $connection->execute($test);
-                return $this->redirect(['action' => 'index']);
-                $this->Flash->success(__('The .... has been saved.'));
-                // if ($personLehrberufTable->save($personLehrberuf)) {
-                //     // return $this->redirect(['action' => 'index']);
-                // }
+                    $connection = ConnectionManager::get('default');
+                    $connection->execute($test);
+                    return $this->redirect(['action' => 'index']);
+                    $this->Flash->success(__('The .... has been saved.'));
+                    // if ($personLehrberufTable->save($personLehrberuf)) {
+                    //     // return $this->redirect(['action' => 'index']);
+                    // }
+                }
+                $this->Flash->error(__('The person could not be saved. Please, try again.'));
             }
-            $this->Flash->error(__('The person could not be saved. Please, try again.'));
         }
         $job = $this->Person->Job->find('list', ['limit' => 200]);
         $lehrberuf = $this->Person->Lehrberuf->find('list', ['limit' => 200, 'fields' => array('id', 'bezeichnung')]);
@@ -132,13 +142,20 @@ class PersonController extends AppController
     {
         $foundedPersons=[];
         $resultsWithQuery=[];
+        $jobs = $this->Person->Job->find('list', ['limit' => 200]);
         if ($this->request->is('post')) {
             $searchParams = $this->request->getData();
-            $foundedPersons =  $this->Person->find('all', ['conditions' => ['first_name LIKE' => '%'.$searchParams['search_word'].'%']]);
+            $foundedPersons =  $this->Person
+                                        ->find('all', ['conditions' => ['first_name LIKE' => '%'.$searchParams['search_word'].'%']])
+                                        ->innerJoinWith('Job')
+                                        ->contain('Job');
+            if($searchParams['job_id']) {
+                $foundedPersons = $foundedPersons->find('all', ['conditions' => ['job_id' => $searchParams['job_id']]]);
+            }
             $resultsWithQuery = $this->Person->query("Select * FROM Person"); //nur demonstrativ damit man den Unterschied im Ergebnis-Array sieht
         }
 
-        $this->set(compact('foundedPersons', 'resultsWithQuery'));
+        $this->set(compact('foundedPersons', 'resultsWithQuery', 'jobs'));
     }
     
     /**
