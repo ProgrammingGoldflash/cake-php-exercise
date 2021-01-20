@@ -143,6 +143,7 @@ class PersonController extends AppController
         $foundedPersons=[];
         $resultsWithQuery=[];
         $jobs = $this->Person->Job->find('list', ['limit' => 200]);
+        $jobs = $jobs + array(null => '<bitte auswählen>');
         if ($this->request->is('post')) {
             $searchParams = $this->request->getData();
             $foundedPersons =  $this->Person
